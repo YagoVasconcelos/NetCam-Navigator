@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CFTV Browser - Projetado para Natura 🖥️</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="menuBar">
+        <div id="menuFile" class="menuItem tools">Arquivo</div>
+        <div id="menuTools" class="menuItem tools">
+            Ferramentas
+            <div class="dropdown1">
+                <div onclick="monitorMode()">Modo Monitoramento</div>
+                <div onclick="openPanel('scanner')">Scanner</div>
+                <div onclick="openPanel('favorites')">Favoritos</div>
+                <div onclick="openPanel('history')">Histórico</div>
+                <div onclick="openDevTools()">Inspecionar (DevTools)</div>
+            </div>
+        </div>
+        <div id="menuWindows" class="menuItem tools">
+            Windows
+            <div class="dropdown1">
+                <div class="menuItem subMenu"><span id="menuLanguage">Idioma</span>
+                    <div class="dropdown2">
+                        <div onclick="setLanguage('pt')">Português (BR)</div>
+                        <div onclick="setLanguage('en')">English (US)</div>
+                    </div>
+                </div>
+                <div>Documentação</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="navBar">
+        <button onclick="back()">⬅️</button>
+        <button onclick="forward()">➡️</button>
+        <button onclick="reload()">🔄️</button>
+        <button onclick="home()">🏠</button>
+        <input id="urlBar" placeholder="Digite IP ou endereço do site">
+        <button id="goBtn" onclick="go()">Ir</button>
+        <button onclick="addFavorite()">⭐</button>
+        <button class="nav-btn" onclick="require('electron').ipcRenderer.send('clear-browser-data')" title="Limpar Cache">🧹</button>
+    </div>
+
+    <div class="tabsBar">
+        <div class="tab active" data-tab="tab1">
+            <span class="tabTitle">Google</span>
+            <span class="closeTab" onclick="closeTab(event,'tab1')">✕</span>
+        </div>
+        <div class="newTabBtn" onclick="newTab()">+</div>
+    </div>
+
+    <div class="mainLayout">
+        <div id="sidePanel" class="sidePanel">
+            
+            <div class="sidePanelHeader">
+                <span id="sidePanelTitle">⭐ Favoritos</span>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="btnExportScan" onclick="exportScannerToExcel()" style="display:none; background:none; border:none; color:#4caf50; cursor:pointer; font-size: 16px;" title="Exportar Excel">📊</button>
+                    
+                    <div id="favFilterIcon" style="position: relative; display: block;">
+                        <span onclick="toggleFilterMenu()" style="cursor: pointer; font-size: 14px;" title="Filtrar">⏳</span>
+                        <div id="filterMenu" style="display: none; position: absolute; top: 25px; right: 0; background: #2b2b2b; border: 1px solid #444; width: 140px; z-index: 999; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                            <div onclick="sortFavorites('name-asc')" style="padding: 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #3a3a3a; color: #ccc;">A → Z</div>
+                            <div onclick="sortFavorites('name-desc')" style="padding: 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #3a3a3a; color: #ccc;">Z → A</div>
+                            <div onclick="sortFavorites('date-new')" style="padding: 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #3a3a3a; color: #ccc;">Mais recentes</div>
+                            <div onclick="sortFavorites('date-old')" style="padding: 10px; font-size: 11px; cursor: pointer; color: #ccc;">Mais antigos</div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="toggleSidePanel()" style="background:none; border:none; color:#888; cursor:pointer; font-size: 18px;">✕</button>
+                </div>
+            </div>
+
+            <div id="favoritesContainer">
+                <div style="padding: 10px; position: relative; display: flex; align-items: center;">
+                    <input type="text" id="favoritesSearch" placeholder="Buscar favorito..." oninput="searchFavorites(this.value)" 
+                        style="width: 100%; padding: 8px 30px 8px 10px; border-radius: 4px; border: none; background: #fff; color: #333;">
+                    <span onclick="clearFavoritesSearch()" id="clearSearchBtn" style="position: absolute; right: 20px; cursor: pointer; color: #999; font-size: 12px; display: none;">✕</span>
+                </div>
+
+                <div class="sidePanelActions" style="display: flex; gap: 5px; padding: 0 10px 10px 10px;">
+                    <button onclick="addFolder()" style="background:#333; color:white; border:1px solid #555; padding:0 10px; cursor:pointer; border-radius:4px;" title="Nova Pasta">📁+</button>
+                    <button onclick="exportFavorites()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📤 Export</button>
+                    <button onclick="importFavorites()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📥 Import</button>
+                </div>
+                <div id="favoritesList" class="sidePanelContent"></div>
+            </div>
+
+            <div id="scannerContainer" style="display:none; padding:15px; flex-direction:column; gap:10px;">
+                <div class="scanner-box" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 8px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 9px; color: #ffd700; display: block; margin-bottom: 2px;">IP INICIAL</label>
+                            <input type="text" id="scanStart" value="172.30.23.1" style="width: 100%; background: #222; border: 1px solid #444; color: #fff; font-size: 11px; padding: 4px; border-radius: 3px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 9px; color: #ffd700; display: block; margin-bottom: 2px;">IP FINAL</label>
+                            <input type="text" id="scanEnd" value="172.30.23.130" style="width: 100%; background: #222; border: 1px solid #444; color: #fff; font-size: 11px; padding: 4px; border-radius: 3px;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label style="font-size: 9px; color: #ffd700;">PORTA:</label>
+                            <input type="number" id="scanPort" value="80" style="width: 50px; background: #222; border: 1px solid #444; color: #fff; font-size: 11px; padding: 3px; border-radius: 3px;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="usePort" checked style="cursor: pointer;">
+                            <label style="font-size: 9px; color: #ffd700; cursor: pointer;">USAR PORTA</label>
+                        </div>
+                    </div>
+                    <button onclick="window.startManualScan()" style="width: 100%; background: #ffd700; border: none; padding: 8px; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 11px; color: #000;">
+                        VARREDURA ATIVA
+                    </button>
+                </div>
+                <div class="scan-results-bar">
+                    <select id="scanSort" onchange="renderScanResults()">
+                        <option value="all">Todos</option>
+                        <option value="asc">Crescente</option>
+                        <option value="desc">Decrescente</option>
+                        <option value="online">Somente Online (Verde)</option>
+                        <option value="offline">Somente Offline (Vermelho)</option>
+                        <option value="fail">Somente com Falha (Amarelo)</option>
+                    </select>
+                    <span onclick="window.clearScanResults()" style="color:#ff5555; cursor:pointer; font-size:11px;">Limpar Tudo</span>
+                </div>
+
+                <div id="scanStats" style="display: flex; gap: 20px; padding: 4px 0; background: #1a1a1a; border-bottom: 1px solid #252525; justify-content: center; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <div style="width: 5px; height: 5px; border-radius: 50%; background: #4caf50; box-shadow: 0 0 4px #4caf50;"></div>
+                        <span id="statOnline" style="font-size: 9px; color: #888; font-weight: bold; letter-spacing: 0.2px;">0 ONLINE</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <div style="width: 5px; height: 5px; border-radius: 50%; background: #ffeb3b; box-shadow: 0 0 4px #ffeb3b;"></div>
+                        <span id="statWarning" style="font-size: 9px; color: #888; font-weight: bold; letter-spacing: 0.2px;">0 FALHA</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <div style="width: 5px; height: 5px; border-radius: 50%; background: #f44336; box-shadow: 0 0 4px #f44336;"></div>
+                        <span id="statOffline" style="font-size: 9px; color: #888; font-weight: bold; letter-spacing: 0.2px;">0 OFFLINE</span>
+                    </div>
+                </div>
+
+                <div id="scanResults" style="margin-top:10px; overflow-y:auto; flex:1;"></div>
+            </div>
+
+            <div id="historyContainer" style="display:none; padding:10px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span style="font-size:11px; color:#ffd700;">🕒 HISTÓRICO</span>
+                    <button onclick="clearHistory()" style="color:red; background:none; border:none; font-size:10px; cursor:pointer;">Limpar</button>
+                </div>
+                <div id="historyResults"></div>
+            </div>
+        </div> <div class="browserArea" id="browserContainer">
+            <webview class="browser active" id="tab1" src="https://google.com"></webview>
+        </div>
+    </div>
+
+    <div class="statusBar"><span id="statusText">Pronto</span></div>
+
+    <div id="customModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#2b2b2b; padding:20px; border-radius:8px; width:320px; border:1px solid #444;">
+            <h3 id="modalTitle" style="margin-top:0; font-size:14px; color:#ffd700;">Salvar Favorito</h3>
+            
+            <label style="font-size:10px; color:#aaa;">NOME DA CÂMERA</label>
+            <input id="modalInput" type="text" style="width:100%; padding:8px; margin-bottom:10px; background:#111; color:white; border:1px solid #555; border-radius:4px;">
+            
+            <label style="font-size:10px; color:#aaa;">PASTA</label>
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
+                <select id="modalFolderSelect" style="flex:1; padding:8px; background:#111; color:white; border:1px solid #555; border-radius:4px;"></select>
+                <button onclick="addFolder()" style="background:#333; color:white; border:1px solid #555; padding:0 10px; cursor:pointer; border-radius:4px;" title="Nova Pasta">📁+</button>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="closeModal()" style="background:transparent; color:#888; border:none; cursor:pointer;">Cancelar</button>
+                <button id="modalConfirm" style="background:#ffd700; color:black; border:none; padding:8px 15px; font-weight:bold; cursor:pointer; border-radius:4px;">SALVAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="browser.js"></script>
+    <script src="scanner.js"></script>
+</body>
+</html>

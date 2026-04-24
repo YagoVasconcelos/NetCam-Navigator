@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>CFTV PRO</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="topbar">
+
+<button onclick="back()">←</button>
+<button onclick="forward()">→</button>
+<button onclick="reload()">⟳</button>
+
+<input id="urlBar" placeholder="Digite IP ou URL">
+
+<button onclick="go()">Ir</button>
+
+</div>
+
+<webview id="browser"></webview>
+
+<script src="browser.js"></script>
+
+</body>
+
+</html>
