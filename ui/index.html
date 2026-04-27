@@ -62,10 +62,10 @@
                     <div id="favFilterIcon" style="position: relative; display: block;">
                         <span onclick="toggleFilterMenu()" style="cursor: pointer; font-size: 14px;" title="Filtrar">⏳</span>
                         <div id="filterMenu" style="display: none; position: absolute; top: 25px; right: 0; background: #2b2b2b; border: 1px solid #444; width: 140px; z-index: 999; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                            <div onclick="sortFavorites('name-asc')" style="padding: 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #3a3a3a; color: #ccc;">A → Z</div>
-                            <div onclick="sortFavorites('name-desc')" style="padding: 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #3a3a3a; color: #ccc;">Z → A</div>
-                            <div onclick="sortFavorites('date-new')" style="padding: 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #3a3a3a; color: #ccc;">Mais recentes</div>
-                            <div onclick="sortFavorites('date-old')" style="padding: 10px; font-size: 11px; cursor: pointer; color: #ccc;">Mais antigos</div>
+                            <div onclick="sortMaster('name-asc')">A → Z</div>
+                            <div onclick="sortMaster('name-desc')">Z → A</div>
+                            <div onclick="sortMaster('date-new')">Mais recentes</div>
+                            <div onclick="sortMaster('date-old')">Mais antigos</div>
                         </div>
                     </div>
                     
@@ -145,12 +145,20 @@
                 <div id="scanResults" style="margin-top:10px; overflow-y:auto; flex:1;"></div>
             </div>
 
-            <div id="historyContainer" style="display:none; padding:10px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <span style="font-size:11px; color:#ffd700;">🕒 HISTÓRICO</span>
-                    <button onclick="clearHistory()" style="color:red; background:none; border:none; font-size:10px; cursor:pointer;">Limpar</button>
+            <div id="historyContainer" style="display:none;">
+                <div style="padding: 10px; position: relative; display: flex; align-items: center;">
+                    <input type="text" id="historySearch" placeholder="Buscar no histórico..." oninput="renderHistory(this.value)" 
+                        style="width: 100%; padding: 8px 30px 8px 10px; border-radius: 4px; border: none; background: #fff; color: #333;">
+                    <span onclick="clearHistorySearch()" id="clearHistSearchBtn" style="position: absolute; right: 20px; cursor: pointer; color: #999; font-size: 12px; display: none;">✕</span>
                 </div>
-                <div id="historyResults"></div>
+
+                <div class="sidePanelActions" style="display: flex; gap: 5px; padding: 0 10px 10px 10px;">
+                    <button onclick="clearHistory()" style="background:#333; color:white; border:1px solid #555; padding:0 10px; cursor:pointer; border-radius:4px;" title="Limpar Tudo">🧹</button>
+                    <button onclick="exportHistory()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📤 Export</button>
+                    <button onclick="importHistory()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📥 Import</button>
+                </div>
+                
+                <div id="historyResults" class="sidePanelContent"></div>
             </div>
         </div> <div class="browserArea" id="browserContainer">
             <webview class="browser active" id="tab1" src="https://google.com"></webview>
@@ -180,6 +188,7 @@
     </div>
 
     <script src="browser.js"></script>
+    <script src="history.js"></script>
     <script src="scanner.js"></script>
 </body>
 </html>

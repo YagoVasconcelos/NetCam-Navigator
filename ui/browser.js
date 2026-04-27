@@ -6,6 +6,7 @@ let tabCount = 1;
 let activeTab = "tab1";
 let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
 let modalAction = null;
+let lastSavedUrlByTab = {};
 
 /* ============================================================
    INICIALIZAÇÃO E EVENTOS DE ENTRADA
@@ -106,11 +107,12 @@ window.openPanel = function(panel) {
     if(iconAmpulheta) iconAmpulheta.style.display = "none";
 
     if(panel === "favorites"){
-        if(fav) fav.style.display = "block";
-        if(iconAmpulheta) iconAmpulheta.style.display = "block"; // Mostra ampulheta
-        document.getElementById("sidePanelTitle").innerText = "⭐ Favoritos";
-        renderFavorites();
-    }
+    if(fav) fav.style.display = "block";
+
+    document.querySelector(".sidePanelActions").style.display = "flex"; // 👈 IMPORTANTE
+
+    renderFavorites();
+}
 
     if(panel === "scanner"){
         if(scan) scan.style.display = "flex";
@@ -346,13 +348,13 @@ window.searchFavorites = function(text) {
     if (clearBtn) clearBtn.style.display = text.length > 0 ? "block" : "none";
 
     const histResults = document.getElementById("historyResults");
-    if (histResults && histResults.offsetParent !== null) {
-        const entries = histResults.querySelectorAll("div[style*='flex-direction: column']");
-        entries.forEach(el => {
-            const content = el.innerText.toLowerCase();
-            el.style.display = content.includes(searchText) ? "flex" : "none";
-        });
-    }
+        if (histResults && histResults.offsetParent !== null) {
+            const entries = histResults.querySelectorAll(".fav-item"); // Alterado para .fav-item
+            entries.forEach(el => {
+                const content = el.innerText.toLowerCase();
+                el.style.display = content.includes(searchText) ? "block" : "none";
+            });
+        }
 
     // Se estivermos no painel de favoritos
     const favList = document.getElementById("favoritesList");
@@ -517,26 +519,40 @@ window.addEventListener('click', function(event) {
 });
 
 // Função de Ordenação
-window.sortFavorites = function(type) {
-    if (!favorites || favorites.length === 0) return;
+window.sortMaster = function(type) {
+    // Detecta qual container está visível
+    const isHistoryOpen = document.getElementById("historyContainer").style.display === "block";
+    const isFavoritesOpen = document.getElementById("favoritesContainer").style.display === "block";
 
-    switch (type) {
-        case 'name-asc':
-            favorites.sort((a, b) => a.title.localeCompare(b.title));
-            break;
-        case 'name-desc':
-            favorites.sort((a, b) => b.title.localeCompare(a.title));
-            break;
-        case 'date-new': // Mais recentes primeiro
-            favorites.sort((a, b) => (b.id || 0) - (a.id || 0));
-            break;
-        case 'date-old': // Mais antigos primeiro
-            favorites.sort((a, b) => (a.id || 0) - (b.id || 0));
-            break;
+    if (isHistoryOpen) {
+        // Lógica para Histórico
+        if (!historyList || historyList.length === 0) return;
+
+        switch (type) {
+            case 'name-asc': historyList.sort((a, b) => a.title.localeCompare(b.title)); break;
+            case 'name-desc': historyList.sort((a, b) => b.title.localeCompare(a.title)); break;
+            case 'date-new': historyList.sort((a, b) => new Date(b.date) - new Date(a.date)); break;
+            case 'date-old': historyList.sort((a, b) => new Date(a.date) - new Date(b.date)); break;
+        }
+        localStorage.setItem("history", JSON.stringify(historyList));
+        renderHistory();
+    } 
+    else if (isFavoritesOpen) {
+        // Lógica para Favoritos
+        if (!favorites || favorites.length === 0) return;
+
+        switch (type) {
+            case 'name-asc': favorites.sort((a, b) => a.title.localeCompare(b.title)); break;
+            case 'name-desc': favorites.sort((a, b) => b.title.localeCompare(a.title)); break;
+            case 'date-new': favorites.sort((a, b) => (b.id || 0) - (a.id || 0)); break;
+            case 'date-old': favorites.sort((a, b) => (a.id || 0) - (a.id || 0)); break;
+        }
+        saveFavorites();
     }
 
-    saveFavorites();
-    if(document.getElementById("filterMenu")) document.getElementById("filterMenu").classList.remove("show");
+    // Fecha o menu de filtro após a ação
+    const menu = document.getElementById("filterMenu");
+    if (menu) menu.style.display = "none";
 };
 
 // Fechar filtro ao clicar fora
@@ -560,10 +576,49 @@ function attachEventsToWebview(targetWebview, tabId) {
         if (activeTab === tabId) {
             const urlBar = document.getElementById("urlBar");
             if (urlBar) urlBar.value = e.url;
-
-            const pageTitle = targetWebview.getTitle() || e.url;
-            addToHistory(pageTitle, e.url);
         }
+    });
+
+   targetWebview.addEventListener("did-finish-load", () => {
+        const url = targetWebview.getURL();
+        const title = targetWebview.getTitle() || url;
+        console.log("HISTÓRICO:", window.addToHistory); // 👈 AQUI
+        // Atualiza barra
+        if (activeTab === tabId) {
+            const urlBar = document.getElementById("urlBar");
+            if (urlBar) urlBar.value = url;
+        }
+
+        // 🚫 evita duplicado na mesma aba
+        if (lastSavedUrlByTab[tabId] === url) return;
+        lastSavedUrlByTab[tabId] = url;
+
+        // Salva histórico
+        if (window.addToHistory) {
+            window.addToHistory({
+                title,
+                url,
+                date: new Date().toISOString()
+            });
+        }
+    });
+
+    targetWebview.addEventListener("did-navigate-in-page", (e) => {
+        const url = e.url;
+        const title = targetWebview.getTitle() || url;
+
+        // evita duplicado
+        if (lastSavedUrlByTab[tabId] === url) return;
+        lastSavedUrlByTab[tabId] = url;
+
+        if (window.addToHistory) {
+            window.addToHistory({
+                title,
+                url,
+                date: new Date().toISOString()
+            });
+        }
+
     });
 
     targetWebview.addEventListener("did-start-loading", () => {
@@ -748,9 +803,16 @@ window.openPanel = function(panel) {
     }
 
     if(panel === "history"){
-        if(hist) hist.style.display = "block";
-        document.getElementById("sidePanelTitle").innerText = "Histórico";
-        renderHistory();
+    
+    if(hist) hist.style.display = "block";
+
+    document.getElementById("sidePanelTitle").innerText = "Histórico";
+
+    // 👇 GARANTE VISUAL
+    const iconAmpulheta = document.getElementById("favFilterIcon");
+    if(iconAmpulheta) iconAmpulheta.style.display = "block";
+
+    renderHistory();
 }
 
 
@@ -857,78 +919,3 @@ window.openDevTools = function() {
     const { ipcRenderer } = require('electron')
     ipcRenderer.send("abrir-console")
 }
-
-/* ============================================================
-   SISTEMA DE HISTÓRICO (PERSISTENTE)
-   ============================================================ */
-
-// 1. Função para registrar uma nova visita
-function addToHistory(title, url) {
-    let history = JSON.parse(localStorage.getItem("browserHistory")) || [];
-    
-    // Evita duplicatas consecutivas
-    if (history.length > 0 && history[0].url === url) return;
-
-    const entry = {
-        title: title || "Sem título",
-        url: url,
-        date: new Date().toLocaleString('pt-BR'),
-        id: Date.now()
-    };
-
-    history.unshift(entry); // Adiciona no início da lista
-    if (history.length > 100) history.pop(); // Limita a 100 itens
-
-    localStorage.setItem("browserHistory", JSON.stringify(history));
-    
-    // Se o painel de histórico estiver visível, atualiza na hora
-    const histContainer = document.getElementById("historyContainer");
-    if (histContainer && histContainer.style.display !== "none") {
-        renderHistory();
-    }
-}
-
-// 2. Função para desenhar o histórico na tela
-window.renderHistory = function() {
-    const container = document.getElementById("historyResults");
-    if (!container) return;
-
-    const history = JSON.parse(localStorage.getItem("browserHistory")) || [];
-    container.innerHTML = "";
-
-    if (history.length === 0) {
-        container.innerHTML = `<div style="padding:10px; color:#666; font-size:11px; text-align:center;">Nenhum histórico encontrado.</div>`;
-        return;
-    }
-
-    history.forEach((item, index) => {
-        const div = document.createElement("div");
-        div.style = "padding: 8px 5px; border-bottom: 1px solid #252525; display: flex; flex-direction: column; gap: 2px;";
-        div.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <span onclick="window.loadUrl('${item.url}')" style="cursor:pointer; font-size:12px; color:#eee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; font-weight:bold;">
-                    ${item.title}
-                </span>
-                <button onclick="deleteHistoryItem(${index})" style="background:none; border:none; color:#555; cursor:pointer; font-size:10px;">✕</button>
-            </div>
-            <span style="font-size:10px; color:#888; font-family:monospace;">${item.url}</span>
-            <span style="font-size:9px; color:#444; text-align:right;">${item.date}</span>
-        `;
-        container.appendChild(div);
-    });
-};
-
-// 3. Funções de Limpeza
-window.clearHistory = function() {
-    if (confirm("Deseja limpar todo o histórico?")) {
-        localStorage.removeItem("browserHistory");
-        renderHistory();
-    }
-};
-
-window.deleteHistoryItem = function(index) {
-    let history = JSON.parse(localStorage.getItem("browserHistory")) || [];
-    history.splice(index, 1);
-    localStorage.setItem("browserHistory", JSON.stringify(history));
-    renderHistory();
-};
