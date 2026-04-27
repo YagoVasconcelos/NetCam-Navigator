@@ -1,21 +1,31 @@
 let historyList = JSON.parse(localStorage.getItem("history")) || [];
 
-window.addToHistory = function(item){
+window.addToHistory = function(item) {
+    // 1. Evita adicionar se a URL for vazia ou "about:blank"
+    if (!item.url || item.url === "about:blank") return;
 
-    // evitar duplicados seguidos
-    if(historyList.length && historyList[0].url === item.url) return;
+    // 2. Evita duplicados seguidos (mesmo site carregando várias vezes)
+    if (historyList.length > 0 && historyList[0].url === item.url) {
+        return;
+    }
 
+    // 3. Adiciona ao início do array
     historyList.unshift(item);
 
-    // limite (opcional)
-    if(historyList.length > 300) historyList.pop();
-    
-    if(historyList.length && historyList[0].url === item.url) return;
+    // 4. Mantém o limite de 300 itens
+    if (historyList.length > 300) {
+        historyList.pop();
+    }
 
+    // 5. Salva e Renderiza
     localStorage.setItem("history", JSON.stringify(historyList));
-
-    renderHistory();
-}
+    
+    // Só renderiza se o painel estiver aberto para poupar processamento
+    const container = document.getElementById("historyContainer");
+    if (container && container.style.display === "block") {
+        renderHistory(document.getElementById("historySearch")?.value || "");
+    }
+};
 
 function renderHistory(filter = ""){
 

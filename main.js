@@ -6,7 +6,7 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1400,
         height: 900,
-        icon: path.join(__dirname, "icon.ico"),
+        icon: path.join(__dirname, "icon", "bNavegador.png"),
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
