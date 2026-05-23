@@ -595,3 +595,187 @@ webview.active, .browser.active {
     from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* No monitor.html */
+/* Painel VMS na lateral */
+.vms-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.vms-playback-controls {
+    margin-top: auto;
+    background: #0f0f0f;
+    padding: 15px 10px;
+    border-top: 2px solid #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.playback-btns {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    width: 100%;
+}
+
+.playback-btns button {
+    background: none !important;
+    border: none !important;
+    color: #ffd700 !important;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.playback-btns button:hover {
+    transform: scale(1.2);
+}
+
+/* Botão de Play Central (Destaque sem ser largo demais) */
+.playback-btns button.main-play {
+    font-size: 22px;
+}
+
+.ptz-joystick {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    width: 100px;
+    margin: 10px auto;
+}
+
+.ptz-joystick button {
+    background: #333;
+    border: 1px solid #444;
+    color: #ffd700;
+    border-radius: 4px;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.grid-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.grid-btns button {
+    background: #222;
+    color: white;
+    border: 1px solid #444;
+    font-size: 10px;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.grid-btns button:hover {
+    background: #ffd700;
+    color: black;
+}
+
+/* Remove o fundo branco e ajusta ícones de navegação */
+.vms-icons button, .playback-btns button {
+    background: none !important;
+    border: none !important;
+    color: #ffd700 !important; /* Amarelo Natura */
+    cursor: pointer;
+    padding: 5px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s;
+}
+
+.vms-icons button:hover {
+    transform: scale(1.1);
+}
+
+/* Organiza a busca e botões na mesma linha */
+/* Container de Busca e Botões alinhados */
+.vms-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+}
+
+.vms-search-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: #111;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0 8px;
+}
+
+.vms-search-container input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 6px;
+    font-size: 12px;
+    outline: none;
+}
+
+/* Ícones de Ação (Salvar/Adicionar) ao lado da busca */
+.vms-icons {
+    display: flex;
+    gap: 8px;
+}
+
+.vms-icons button {
+    background: none !important;
+    border: none !important;
+    color: #ffd700 !important;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.vms-icons button:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
+
+.mosaic-trigger {
+    cursor: pointer;
+    color: #ffd700;
+    font-size: 22px;
+    text-align: center;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #1a1a1a;
+}
+
+#mosaicList {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: #2b2b2b;
+    border: 1px solid #444;
+    border-radius: 4px;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+#mosaicList div {
+    padding: 10px;
+    font-size: 11px;
+    color: #ccc;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #383838;
+}
+
+#mosaicList div:hover { background: #3a3a3a; color: #ffd700; }

@@ -7,6 +7,7 @@ let activeTab = "tab1";
 let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
 let modalAction = null;
 let lastSavedUrlByTab = {};
+let monitorAreas = JSON.parse(localStorage.getItem("monitor_areas")) || [];
 
 /* ============================================================
    INICIALIZAÇÃO E EVENTOS DE ENTRADA
@@ -61,12 +62,15 @@ function go() {
     if (!url) return;
 
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        if (url.includes(".") || url.includes(":")) {
-            url = "http://" + url;
-        } else {
-            url = "https://www.google.com/search?q=" + encodeURIComponent(url);
-        }
+    try {
+        // tenta validar como URL
+        new URL("http://" + url);
+        url = "http://" + url;
+    } catch {
+        // se falhar, vira busca
+        url = "https://www.google.com/search?q=" + encodeURIComponent(url);
     }
+}
 
     const active = document.querySelector(".browser.active");
     if (active) active.src = url;
@@ -89,40 +93,6 @@ window.loadUrl = (url) => {
     }
 };
 
-window.openPanel = function(panel) {
-    const sidePanel = document.getElementById("sidePanel");
-    const fav = document.getElementById("favoritesContainer");
-    const scan = document.getElementById("scannerContainer");
-    const hist = document.getElementById("historyContainer");
-    
-    // Elementos de controle do topo
-    const btnExcel = document.getElementById("btnExportScan");
-    const iconAmpulheta = document.getElementById("favFilterIcon");
-
-    // Esconder tudo primeiro
-    if(fav) fav.style.display = "none";
-    if(scan) scan.style.display = "none";
-    if(hist) hist.style.display = "none";
-    if(btnExcel) btnExcel.style.display = "none";
-    if(iconAmpulheta) iconAmpulheta.style.display = "none";
-
-    if(panel === "favorites"){
-    if(fav) fav.style.display = "block";
-
-    document.querySelector(".sidePanelActions").style.display = "flex"; // 👈 IMPORTANTE
-
-    renderFavorites();
-}
-
-    if(panel === "scanner"){
-        if(scan) scan.style.display = "flex";
-        if(btnExcel) btnExcel.style.display = "block"; // Mostra o Excel
-        document.getElementById("sidePanelTitle").innerText = "Scanner de Rede";
-    }
-    
-    // ... restante da sua função history ...
-    if(sidePanel) sidePanel.classList.add("open");
-}
 
 /* ============================================================
    SISTEMA DE FAVORITOS (REVISADO)
@@ -491,11 +461,6 @@ function closeModal() {
     document.getElementById("customModal").style.display = "none";
 }
 
-window.deleteFavorite = function(index) {
-    favorites.splice(index, 1);
-    saveFavorites();
-    console.log("Item removido da raiz.");
-};
 
 // 3. Controla a abertura/fechamento da Ampulheta
 window.toggleFilterMenu = function() {
@@ -507,13 +472,11 @@ window.toggleFilterMenu = function() {
 };
 
 // 4. FECHAR AO CLICAR FORA (A peça que faltava)
-window.addEventListener('click', function(event) {
-    const menu = document.getElementById("filterMenu");
-    // Se o menu estiver aberto
-    if (menu && menu.style.display === "block") {
-        // Se o clique NÃO foi no menu e NÃO foi no ícone da ampulheta, fecha.
-        if (!menu.contains(event.target) && event.target.innerText !== '⏳') {
-            menu.style.display = "none";
+window.addEventListener("click", function(event) {
+    if (!event.target.matches('#filterMenu') && !event.target.closest('.dropdown-filter')) {
+        const menu = document.getElementById("filterMenu");
+        if (menu && menu.classList.contains('show')) {
+            menu.classList.remove('show');
         }
     }
 });
@@ -545,7 +508,7 @@ window.sortMaster = function(type) {
             case 'name-asc': favorites.sort((a, b) => a.title.localeCompare(b.title)); break;
             case 'name-desc': favorites.sort((a, b) => b.title.localeCompare(a.title)); break;
             case 'date-new': favorites.sort((a, b) => (b.id || 0) - (a.id || 0)); break;
-            case 'date-old': favorites.sort((a, b) => (a.id || 0) - (a.id || 0)); break;
+            case 'date-old': favorites.sort((a, b) => (a.id || 0) - (b.id || 0));
         }
         saveFavorites();
     }
@@ -556,12 +519,6 @@ window.sortMaster = function(type) {
 };
 
 // Fechar filtro ao clicar fora
-window.onclick = function(event) {
-    if (!event.target.matches('#filterMenu') && !event.target.parentNode.matches('.dropdown-filter')) {
-        const menu = document.getElementById("filterMenu");
-        if (menu && menu.classList.contains('show')) menu.classList.remove('show');
-    }
-}
 
 /* ============================================================
    GERENCIAMENTO DE ABAS E WEBVIEWS
@@ -582,7 +539,7 @@ function attachEventsToWebview(targetWebview, tabId) {
    targetWebview.addEventListener("did-finish-load", () => {
         const url = targetWebview.getURL();
         const title = targetWebview.getTitle() || url;
-        console.log("HISTÓRICO:", window.addToHistory); // 👈 AQUI
+        //console.log("HISTÓRICO:", window.addToHistory); // 👈 AQUI
         // Atualiza barra
         if (activeTab === tabId) {
             const urlBar = document.getElementById("urlBar");
@@ -774,49 +731,60 @@ window.openScanner = function() {
 
 window.openPanel = function(panel) {
     const sidePanel = document.getElementById("sidePanel");
-    const fav = document.getElementById("favoritesContainer");
-    const scan = document.getElementById("scannerContainer");
-    const hist = document.getElementById("historyContainer");
     
-    const btnExcel = document.getElementById("btnExportScan");
-    const iconAmpulheta = document.getElementById("favFilterIcon");
+    // 1. MAPEAMENTO DE ELEMENTOS
+    // Containers de conteúdo principal
+    const containers = {
+        fav: document.getElementById("favoritesContainer"),
+        scan: document.getElementById("scannerContainer"),
+        hist: document.getElementById("historyContainer"),
+        monitor: document.getElementById("monitorControls")
+    };
+    
+    // Elementos de UI específicos (ícones, botões e barras)
+    const extraUi = {
+        btnExcel: document.getElementById("btnExportScan"),
+        iconAmpulheta: document.getElementById("favFilterIcon"),
+        favActions: document.querySelector(".sidePanelActions") // Bloco Importar/Exportar
+    };
 
-    // 1. Esconde TUDO com segurança
-    if(fav) fav.style.display = "none";
-    if(scan) scan.style.display = "none";
-    if(hist) hist.style.display = "none";
-    if(btnExcel) btnExcel.style.display = "none";
-    if(iconAmpulheta) iconAmpulheta.style.display = "none";
+    // 2. LIMPEZA TOTAL (Reset de Estado)
+    // Esconde todos os containers principais
+    Object.values(containers).forEach(el => { if(el) el.style.display = "none"; });
+    
+    // Esconde todos os elementos extras para não "vazar" em outras abas[cite: 6, 7]
+    Object.values(extraUi).forEach(el => { if(el) el.style.display = "none"; });
 
-    // 2. Abre apenas o solicitado
-    if(panel === "favorites"){
-        if(fav) fav.style.display = "block";
-        if(iconAmpulheta) iconAmpulheta.style.display = "block";
-        document.getElementById("sidePanelTitle").innerText = "⭐ Favoritos";
-        if(typeof renderFavorites === "function") renderFavorites();
+    // 3. ATIVAÇÃO POR PAINEL
+    switch(panel) {
+        case "favorites":
+            if(containers.fav) containers.fav.style.display = "block";
+            if(extraUi.iconAmpulheta) extraUi.iconAmpulheta.style.display = "block";
+            if(extraUi.favActions) extraUi.favActions.style.display = "flex";
+            document.getElementById("sidePanelTitle").innerText = "⭐ Favoritos";
+            if(typeof renderFavorites === "function") renderFavorites();
+            break;
+
+        case "scanner":
+            if(containers.scan) containers.scan.style.display = "flex";
+            if(extraUi.btnExcel) extraUi.btnExcel.style.display = "block";
+            document.getElementById("sidePanelTitle").innerText = "Scanner de Rede";
+            break;
+
+        case "history":
+            if(containers.hist) containers.hist.style.display = "block";
+            if(extraUi.iconAmpulheta) extraUi.iconAmpulheta.style.display = "block";
+            document.getElementById("sidePanelTitle").innerText = "Histórico";
+            if(typeof renderHistory === "function") renderHistory();
+            break;
+
+        case "monitor":
+            if(containers.monitor) containers.monitor.style.display = "block";
+            document.getElementById("sidePanelTitle").innerText = "📹 Monitoramento";
+            break;
     }
 
-    if(panel === "scanner"){
-        if(scan) scan.style.display = "flex";
-        if(btnExcel) btnExcel.style.display = "block";
-        document.getElementById("sidePanelTitle").innerText = "Scanner de Rede";
-    }
-
-    if(panel === "history"){
-    
-    if(hist) hist.style.display = "block";
-
-    document.getElementById("sidePanelTitle").innerText = "Histórico";
-
-    // 👇 GARANTE VISUAL
-    const iconAmpulheta = document.getElementById("favFilterIcon");
-    if(iconAmpulheta) iconAmpulheta.style.display = "block";
-
-    renderHistory();
-}
-
-
-    // 3. Garante que o painel abra
+    // 4. Abertura do Painel Lateral
     if(sidePanel) sidePanel.classList.add("open");
 };
 
@@ -918,4 +886,181 @@ window.openDevTools = function() {
     // abre o DevTools
     const { ipcRenderer } = require('electron')
     ipcRenderer.send("abrir-console")
+}
+
+// ============================
+// MODO MONITORAMENTO (NOVO)
+// ============================
+window.monitorMode = function () {
+
+    const tabId = "monitorTab";
+
+    // evita duplicar
+    if (document.getElementById(tabId)) {
+        switchTab(tabId);
+        openPanel("monitor");
+        return;
+    }
+
+    const tab = document.createElement("div");
+    tab.className = "tab";
+    tab.dataset.tab = tabId;
+
+    tab.innerHTML = `
+        <span class="tabTitle">📹 Monitoramento</span>
+        <span class="closeTab" onclick="closeTab(event,'${tabId}')">✕</span>
+    `;
+
+    tab.onclick = () => switchTab(tabId);
+
+    document.querySelector(".tabsBar")
+        .insertBefore(tab, document.querySelector(".newTabBtn"));
+
+    const webview = document.createElement("webview");
+    webview.id = tabId;
+    webview.className = "browser";
+
+    // 🔥 CORREÇÃO IMPORTANTE
+    webview.src = "./monitor.html";
+
+    document.getElementById("browserContainer").appendChild(webview);
+
+    attachEventsToWebview(webview, tabId);
+
+    // 🔥 ESPERA CARREGAR
+    webview.addEventListener("dom-ready", () => {
+
+        const savedGrid = localStorage.getItem("monitor_grid") || 4;
+
+        webview.executeJavaScript(`
+            if(window.setGrid){
+                window.setGrid(${savedGrid});
+            }
+        `);
+
+    });
+
+    switchTab(tabId);
+    openPanel("monitor");
+};
+
+
+
+window.zoom = function(type){
+    console.log("Zoom:", type);
+};
+
+
+
+// Função para abrir uma área e mudar o título
+window.loadArea = function(areaName) {
+    const area = monitorAreas.find(a => a.name === areaName);
+    if (!area) return;
+
+    // Altera o título da aba/janela
+    const activeTabEl = document.querySelector(`.tab[data-tab="${activeTab}"] .tabTitle`);
+    if (activeTabEl) activeTabEl.innerText = `📹 ${area.name}`;
+    
+    // Altera o título da janela principal (Electron)
+    document.title = `CFTV PRO - ${area.name}`;
+
+    // Carrega o grid apropriado (ex: se tem 6 cameras, carrega grid de 9)
+    const qtd = area.cameras.length;
+    let gridSize = qtd <= 1 ? 1 : (qtd <= 4 ? 4 : (qtd <= 9 ? 9 : 16));
+    
+    // Chama a função do monitor.html via executeJavaScript
+    const monitorWebview = document.getElementById("monitorTab");
+    if (monitorWebview) {
+        monitorWebview.executeJavaScript(`
+            window.setGrid(${gridSize});
+            ${JSON.stringify(area.cameras)}.forEach((url, i) => window.loadCamera(i, url));
+        `);
+    }
+};
+
+// Renderiza a lista estilo árvore (Pastas e Câmeras)
+window.renderVMSTree = function() {
+    const tree = document.getElementById("vmsTree");
+    tree.innerHTML = "";
+
+    monitorAreas.forEach(area => {
+        const areaDiv = document.createElement("div");
+        areaDiv.className = "tree-folder";
+        areaDiv.innerHTML = `
+            <div class="folder-header" onclick="loadArea('${area.name}')">
+                <span>📁 ${area.name}</span>
+                <span class="status-dot online"></span>
+            </div>
+            <div class="folder-content">
+                ${area.cameras.map(cam => `
+                    <div class="tree-item" draggable="true" ondragstart="dragCam(event, '${cam}')">
+                        <span>📹 ${cam}</span>
+                        <div class="cam-info">
+                            <span class="live-indicator">LIVE</span>
+                            <span class="time-counter">00:00:00</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        tree.appendChild(areaDiv);
+    });
+};
+
+// Localiza o webview que contém o monitor.html
+function getMonitorView() {
+    return document.getElementById("monitorTab");
+}
+
+window.setGrid = function(qtd) {
+    const monitor = getMonitorView();
+    if (!monitor) return;
+
+    localStorage.setItem("monitor_grid", qtd);
+
+    monitor.executeJavaScript(`
+        if(window.setGrid){
+            window.setGrid(${qtd});
+        }
+    `);
+};
+
+// Comando de Movimentação PTZ
+window.ptz = function(dir) {
+    const monitor = getMonitorView();
+    if (!monitor) return;
+    
+    console.log("Comando PTZ enviado:", dir);
+    // Aqui você pode implementar a lógica de enviar para a API da câmera
+    // Ou apenas um feedback visual no console por enquanto
+    monitor.executeJavaScript(`console.log("Executando PTZ para: ${dir}")`);
+};
+
+// Gerenciamento de Áreas (VMS Tree)
+
+window.toggleMosaicMenu = function() {
+    const menu = document.getElementById("mosaicList");
+    if (menu) {
+        menu.style.display = menu.style.display === "block" ? "none" : "block";
+    }
+};
+
+// Fechar menu de mosaico ao clicar fora
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.mosaic-dropdown')) {
+        const menu = document.getElementById("mosaicList");
+        if (menu) menu.style.display = "none";
+    }
+});
+
+// Exemplo de como renderizar a lista de mosaicos com a opção de editar
+function renderMosaicOptions() {
+    const list = document.getElementById("mosaicList");
+    list.innerHTML = `
+        <div onclick="setGrid(1)">1x1 Standard <span onclick="editMosaic(1)">✏️</span></div>
+        <div onclick="setGrid(4)">2x2 Quad <span onclick="editMosaic(4)">✏️</span></div>
+        <div onclick="setGrid(9)">3x3 Matrix <span onclick="editMosaic(9)">✏️</span></div>
+        <div class="divider"></div>
+        <div onclick="createNewLayout()">+ Criar Novo Mosaico</div>
+    `;
 }

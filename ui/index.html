@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>CFTV Browser 🖥️</title>
     <link rel="stylesheet" href="style.css">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' *; img-src 'self' https: data: http:; style-src 'self' 'unsafe-inline'; frame-src *; child-src *;">
 </head>
 <body>
     <div class="menuBar">
@@ -82,8 +83,8 @@
 
                 <div class="sidePanelActions" style="display: flex; gap: 5px; padding: 0 10px 10px 10px;">
                     <button onclick="addFolder()" style="background:#333; color:white; border:1px solid #555; padding:0 10px; cursor:pointer; border-radius:4px;" title="Nova Pasta">📁+</button>
-                    <button onclick="exportFavorites()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📤 Export</button>
-                    <button onclick="importFavorites()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📥 Import</button>
+                    <button onclick="exportFavorites()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📤 Exportar</button>
+                    <button onclick="importFavorites()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📥 Importar</button>
                 </div>
                 <div id="favoritesList" class="sidePanelContent"></div>
             </div>
@@ -154,13 +155,66 @@
 
                 <div class="sidePanelActions" style="display: flex; gap: 5px; padding: 0 10px 10px 10px;">
                     <button onclick="clearHistory()" style="background:#333; color:white; border:1px solid #555; padding:0 10px; cursor:pointer; border-radius:4px;" title="Limpar Tudo">🧹</button>
-                    <button onclick="exportHistory()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📤 Export</button>
-                    <button onclick="importHistory()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📥 Import</button>
+                    <button onclick="exportHistory()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📤 Exportar</button>
+                    <button onclick="importHistory()" style="flex:1; padding: 5px; font-size: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 3px; cursor: pointer;">📥 Importar</button>
                 </div>
                 
                 <div id="historyResults" class="sidePanelContent"></div>
             </div>
-        </div> <div class="browserArea" id="browserContainer">
+            
+            <div id="monitorControls" style="display:none;" class="vms-panel">
+                <!-- Toolbar de Gerenciamento -->
+                <div class="vms-toolbar">
+                    <div class="vms-search-container">
+                        <input type="text" id="vmsSearch" placeholder="🔍 Buscar câmera ou prédio..." oninput="window.filterVMSTree(this.value)">
+                    </div>
+                    <div class="vms-icons">
+                        <button onclick="window.saveCurrentLayoutAsArea()" title="Salvar Layout Atual">💾</button>
+                        <button onclick="window.createNewAreaFolder()" title="Nova Área">📁</button>
+                        <button onclick="window.addNewCameraToArea()" title="Adicionar Câmera">➕</button>
+                    </div>
+                </div>
+
+                <!-- Árvore de Dispositivos (Hierarquia de Áreas) -->
+                <div id="vmsTree" class="vms-tree">
+                    <!-- Renderizado pelo browser.js -->
+                </div>
+
+                <!-- Controles de Grid e PTZ (Igual à imagem professional) -->
+                <div class="vms-playback-controls">
+                    <div class="playback-status">Ao vivo</div>
+                    <div class="playback-btns">
+                        <button>⏪</button>
+                        <button>◀️</button>
+                        <button class="main-play">⏸️</button>
+                        <button>▶️</button>
+                        <button>⏩</button>
+                    </div>
+                    
+                    <div class="ptz-joystick">
+                        <button onclick="ptz('up')">▲</button>
+                        <div class="ptz-mid">
+                            <button onclick="ptz('left')">◀</button>
+                            <button onclick="ptz('home')">🏠</button>
+                            <button onclick="ptz('right')">▶</button>
+                        </div>
+                        <button onclick="ptz('down')">▼</button>
+                    </div>
+
+                    <div class="grid-presets">
+                        <label>MOSAICO</label>
+                        <div class="grid-btns">
+                            <button onclick="setGrid(1)">1x1</button>
+                            <button onclick="setGrid(4)">2x2</button>
+                            <button onclick="setGrid(9)">3x3</button>
+                            <button onclick="setGrid(16)">4x4</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> 
+        <div class="browserArea" id="browserContainer">
             <webview class="browser active" id="tab1" src="https://google.com"></webview>
         </div>
     </div>

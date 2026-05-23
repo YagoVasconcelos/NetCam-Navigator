@@ -1,22 +1,285 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            background: #0a0a0a; /* Fundo mais profundo */
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .monitor-grid {
+            display: grid;
+            gap: 4px; /* Espaçamento fino estilo profissional */
+            width: 100%;
+            height: 100%;
+            padding: 4px;
+            box-sizing: border-box;
+        }
+
+        .cam-slot {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            position: relative;
+            border-radius: 2px;
+            overflow: hidden;
+            transition: border 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Efeito de arraste */
+        .cam-slot.drag-over {
+            border: 2px dashed #ffd700;
+            background: #252525;
+        }
+
+        .cam-slot webview {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .slot-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 24px;
+            background: rgba(20, 20, 20, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            z-index: 10;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+
+        .cam-slot:hover .slot-header {
+            opacity: 1;
+        }
+
+        .slot-label {
+            color: #ffd700;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .slot-tools {
+            display: flex;
+            gap: 8px;
+        }
+
+        .slot-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 2px;
+        }
+
+        .slot-btn:hover { color: #fff; }
+
+        .empty-msg {
+            color: #333;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
 </head>
 
 <body>
 
-<h2>Monitoramento</h2>
+<div id="monitorGrid" class="monitor-grid"></div>
 
-<div class="grid">
+<script>
+window.setGrid = function(qtd) {
+    const grid = document.getElementById("monitorGrid");
+    grid.innerHTML = "";
 
-<video controls autoplay></video>
-<video controls autoplay></video>
-<video controls autoplay></video>
-<video controls autoplay></video>
+    const size = Math.sqrt(qtd);
+    grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${size}, 1fr)`;
 
-</div>
+    for (let i = 0; i < qtd; i++) {
+        const slot = document.createElement("div");
+        slot.className = "cam-slot";
+        slot.dataset.index = i;
 
+        // Configuração de Drag & Drop
+        slot.ondragover = (e) => {
+            e.preventDefault();
+            slot.classList.add('drag-over');
+        };
+
+        slot.ondragleave = () => slot.classList.remove('drag-over');
+
+        slot.ondrop = (e) => {
+            e.preventDefault();
+            slot.classList.remove('drag-over');
+            const url = e.dataTransfer.getData("text/plain");
+            if (url && (url.startsWith('http') || url.includes('.'))) {
+                window.loadCamera(i, url);
+            }
+        };
+
+        // Clique para adicionar manual
+        slot.onclick = (e) => {
+            if(e.target.closest('.slot-btn')) return;
+            if(!slot.querySelector('webview') || slot.querySelector('webview').src === "about:blank"){
+                const ip = prompt("Endereço da Câmera (IP ou URL):");
+                if(ip) window.loadCamera(i, ip);
+            }
+        };
+
+        createEmptySlot(slot, i);
+        grid.appendChild(slot);
+    }
+};
+
+function createEmptySlot(slot, i) {
+    slot.innerHTML = `
+        <div class="slot-header">
+            <span class="slot-label">CAM ${String(i + 1).padStart(2, '0')}</span>
+            <div class="slot-tools">
+                <button class="slot-btn" onclick="window.removeCamera(${i})">✕</button>
+            </div>
+        </div>
+        <span class="empty-msg">Sem Sinal</span>
+    `;
+}
+
+window.loadCamera = function(index, url) {
+        const slots = document.querySelectorAll(".cam-slot");
+        if (!slots[index]) return;
+
+        const slot = slots[index];
+        const finalUrl = url.startsWith("http") ? url : "http://" + url;
+
+        slot.innerHTML = `
+            <div class="slot-header">
+                <span class="slot-label">CAM ${String(index + 1).padStart(2, '0')}</span>
+                <div class="slot-tools">
+                    <button class="slot-btn" onclick="window.removeCamera(${index})">✕</button>
+                </div>
+            </div>
+            <webview src="${finalUrl}" useragent="Mozilla/5.0" autosize="on"></webview>
+        `;
+    };
+
+window.removeCamera = function(index) {
+    const slots = document.querySelectorAll(".cam-slot");
+    if (slots[index]) {
+        createEmptySlot(slots[index], index);
+        saveLayout();
+    }
+};
+
+function saveLayout() {
+    const slots = document.querySelectorAll(".cam-slot");
+    let layout = [];
+    slots.forEach(slot => {
+        const view = slot.querySelector("webview");
+        layout.push(view ? view.src : null);
+    });
+    localStorage.setItem("monitor_layout", JSON.stringify(layout));
+}
+
+window.onload = () => {
+    const savedGrid = localStorage.getItem("monitor_grid") || 4;
+    window.setGrid(parseInt(savedGrid));
+
+    setTimeout(() => {
+        const layout = JSON.parse(localStorage.getItem("monitor_layout") || "[]");
+        layout.forEach((url, i) => {
+            if (url && url !== "about:blank") window.loadCamera(i, url);
+        });
+    }, 500);
+};
+
+window.saveCurrentLayoutAsArea = function() {
+    const areaName = prompt("Digite o nome da nova Área (ex: ADM, Fábrica, Restaurante):");
+    if (!areaName) return;
+
+    const slots = document.getElementById("monitorTab"); // Referência ao webview do monitor
+    
+    // Captura os IPs que estão no grid atual através do monitor.html
+    slots.executeJavaScript(`
+        Array.from(document.querySelectorAll("webview")).map(w => w.src)
+    `).then(urls => {
+        const newArea = {
+            id: Date.now(),
+            name: areaName.toUpperCase(),
+            cameras: urls.filter(url => url !== "about:blank")
+        };
+
+        monitorAreas.push(newArea);
+        localStorage.setItem("monitor_areas", JSON.stringify(monitorAreas));
+        renderVMSTree();
+        alert(`Área "${areaName}" salva com sucesso!`);
+    });
+};
+
+window.loadArea = function(id) {
+    const area = monitorAreas.find(a => a.id === id);
+    if (!area) return;
+
+    // 1. Atualiza o título da aba no navegador
+    const tab = document.querySelector(`[data-tab="${activeTab}"] .tabTitle`);
+    if (tab) tab.innerText = `📹 ${area.name}`;
+
+    // 2. Carrega as câmeras no grid (ajustando o tamanho do grid automaticamente)
+    const qtd = area.cameras.length;
+    let gridSize = qtd <= 1 ? 1 : (qtd <= 4 ? 4 : (qtd <= 9 ? 9 : 16));
+    
+    const monitorWebview = document.getElementById("monitorTab");
+    if (monitorWebview) {
+        monitorWebview.executeJavaScript(`
+            window.setGrid(${gridSize});
+            setTimeout(() => {
+                ${JSON.stringify(area.cameras)}.forEach((url, i) => window.loadCamera(i, url));
+            }, 500);
+        `);
+    }
+};
+
+// Função para dar Zoom com o Scroll do Mouse
+window.addEventListener('wheel', (e) => {
+    const target = e.target.closest('webview');
+    if (!target) return;
+
+    e.preventDefault();
+    let zoom = target.getZoomLevel();
+    if (e.deltaY < 0) {
+        target.setZoomLevel(zoom + 0.5); // Zoom In
+    } else {
+        target.setZoomLevel(zoom - 0.5); // Zoom Out
+    }
+}, { passive: false });
+
+// Clique Duplo para Tela Cheia (Fullscreen)
+document.addEventListener('dblclick', (e) => {
+    const slot = e.target.closest('.cam-slot');
+    if (!slot) return;
+
+    if (!document.fullscreenElement) {
+        slot.requestFullscreen().catch(err => {
+            console.error(`Erro ao entrar em tela cheia: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+</script>
 </body>
 </html>
